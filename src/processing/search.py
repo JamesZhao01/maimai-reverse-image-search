@@ -97,17 +97,17 @@ def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_feat
         if meta and 'charts' in meta:
             # Check if any chart in this song falls within the range
             match_range = False
-                for chart in meta['charts']:
-                    if not isinstance(chart, dict):
-                        continue
-                    try:
-                        lvl_val = chart.get('internalLevel', '0') or chart.get('levelValue', '0') or '0'
-                        lvl = float(lvl_val)
-                        if min_level <= lvl <= max_level:
-                            match_range = True
-                            break
-                    except (ValueError, TypeError):
-                        continue
+            for chart in meta['charts']:
+                if not isinstance(chart, dict):
+                    continue
+                try:
+                    lvl_val = chart.get('internalLevel', '0') or chart.get('levelValue', '0') or '0'
+                    lvl = float(lvl_val)
+                    if min_level <= lvl <= max_level:
+                        match_range = True
+                        break
+                except (ValueError, TypeError):
+                    continue
             if not match_range:
                 continue
 
@@ -130,7 +130,7 @@ def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_feat
                     'imageName': filename,
                     'score': good_matches
                 })
-        except Exception as e:
+        except Exception:
             continue
 
     # Sort by descending score
