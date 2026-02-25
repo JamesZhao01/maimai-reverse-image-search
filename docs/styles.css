@@ -201,7 +201,7 @@ input:checked + .slider:before {
   letter-spacing: 0.5px;
 }
 
-#threshold-slider, #size-slider, #features-slider {
+#threshold-slider, #size-slider, #features-slider, #results-slider {
   flex: 1;
   cursor: pointer;
   accent-color: var(--primary);
@@ -456,10 +456,35 @@ input:checked + .slider:before {
   color: white;
   font-size: 0.8rem;
   font-weight: 800;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   z-index: 2;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.chart-type-badge {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 2;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  letter-spacing: 0.5px;
+}
+
+.type-dx {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.type-std {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .result-img-container {
@@ -493,6 +518,35 @@ input:checked + .slider:before {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.copy-btn:hover {
+  color: var(--primary);
+  opacity: 1;
+  background: rgba(92, 98, 236, 0.1);
+}
+
+.copy-btn:active {
+  transform: scale(0.9);
+}
+
+.copy-success {
+  color: #4caf50 !important;
 }
 
 .result-artist {

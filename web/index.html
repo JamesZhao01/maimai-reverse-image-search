@@ -7,6 +7,7 @@
   <meta name="description" content="Find the maimai song matching your chart screenshot." />
   <link rel="stylesheet" href="styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script>
     window.onOpenCvReady = function () {
         window.cvReady = true;
@@ -59,6 +60,10 @@
             <input type="range" id="features-slider" min="100" max="2000" step="100" value="1000">
             <span class="slider-bound">Detailed (2000)</span>
           </div>
+        </div>
+        <div class="setting-group">
+          <label id="results-label" style="font-weight: 600; color: var(--text-main);">Results Count: 5</label>
+          <input type="range" id="results-slider" min="1" max="20" step="1" value="5" style="width: 100%;">
         </div>
         <div class="setting-group">
           <label id="level-label" style="font-weight: 600; color: var(--text-main);">Difficulty Filter: 0.0 - 15.0</label>

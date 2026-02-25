@@ -36,6 +36,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const minLevelSlider = document.getElementById("min-level-slider");
     const maxLevelSlider = document.getElementById("max-level-slider");
     const levelLabel = document.getElementById("level-label");
+    const resultsSlider = document.getElementById("results-slider");
+    const resultsLabel = document.getElementById("results-label");
     const lastUpdatedLabel = document.getElementById("last-updated");
     const metricsText = document.getElementById("metrics-text");
     const cancelBtn = document.getElementById("cancel-btn");
@@ -70,6 +72,10 @@ document.addEventListener("DOMContentLoaded", () => {
         featuresLabel.innerText = `Max ORB Features: ${e.target.value}`;
     });
 
+    resultsSlider.addEventListener("input", (e) => {
+        resultsLabel.innerText = `Results Count: ${e.target.value}`;
+    });
+
     const updateLevelLabel = () => {
         levelLabel.innerText = `Difficulty Filter: ${parseFloat(minLevelSlider.value).toFixed(1)} - ${parseFloat(maxLevelSlider.value).toFixed(1)}`;
     };
@@ -102,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
     thresholdSlider.addEventListener("change", triggerReSearch);
     sizeSlider.addEventListener("change", triggerReSearch);
     featuresSlider.addEventListener("change", triggerReSearch);
+    resultsSlider.addEventListener("change", triggerReSearch);
     minLevelSlider.addEventListener("change", triggerReSearch);
     maxLevelSlider.addEventListener("change", triggerReSearch);
 
@@ -212,6 +219,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Handle Copy Title via Event Delegation
+    resultsGrid.addEventListener("click", async (e) => {
+        const copyBtn = e.target.closest(".copy-btn");
+        if (copyBtn) {
+            const title = copyBtn.getAttribute("data-title");
+            try {
+                await navigator.clipboard.writeText(title);
+                const icon = copyBtn.querySelector("i");
+                const oldClass = icon.className;
+                icon.className = "fas fa-check copy-success";
+                setTimeout(() => {
+                    icon.className = oldClass;
+                }, 1500);
+            } catch (err) {
+                console.error("Failed to copy!", err);
+            }
+        }
+    });
+
     // Handle Refresh Button
     document.getElementById("refresh-btn").addEventListener("click", () => {
         resultsArea.classList.add("hidden");
@@ -256,6 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("maxFeatures", featuresSlider.value);
         formData.append("minLevel", minLevelSlider.value);
         formData.append("maxLevel", maxLevelSlider.value);
+        formData.append("topK", resultsSlider.value);
 
         processingStatus.classList.remove('hidden');
         progressText.innerText = "Processing remotely...";
@@ -275,7 +302,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.dimensions && data.dimensions.src_w) {
-                metricsText.innerText = `Source Dimension: ${data.dimensions.src_w}x${data.dimensions.src_h}\nExtraction Dimension: ${data.dimensions.ext_w}x${data.dimensions.ext_h}`;
+                let metrics = `Source Dimension: ${data.dimensions.src_w}x${data.dimensions.src_h}\nExtraction Dimension: ${data.dimensions.ext_w}x${data.dimensions.ext_h}`;
+                if (data.num_features) {
+                    metrics += `\nExtracted SIFT Features: ${data.num_features}`;
+                }
+                metricsText.innerText = metrics;
             }
 
             displayResults(data.matches || []);
@@ -371,6 +402,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     const keypoints = new cv.KeyPointVector();
                     const queryDesc = new cv.Mat();
                     cvOrb.detectAndCompute(gray, new cv.Mat(), keypoints, queryDesc);
+
+                    const detectedCount = keypoints.size();
+                    currentMetrics += `\nExtracted ORB Features: ${detectedCount}`;
+                    metricsText.innerText = currentMetrics;
 
                     src.delete(); gray.delete(); keypoints.delete();
 
@@ -485,7 +520,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     requestAnimationFrame(processBatch);
                 } else {
                     results.sort((a, b) => b.score - a.score);
-                    let topK = results.slice(0, 5);
+                    let maxResults = parseInt(resultsSlider.value);
+                    let topK = results.slice(0, maxResults);
 
                     topK.forEach(r => {
                         let meta = localMetadata[r.imageName];
@@ -547,20 +583,39 @@ document.addEventListener("DOMContentLoaded", () => {
             const zetarakuUrl = `https://arcade-songs.zetaraku.dev/maimai/?title=${encodeURIComponent(match.title || '')}`;
             const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent('maimai ' + (match.title || ''))}`;
 
+            // Chart Type (STD vs DX)
+            let typeBadge = '';
+            if (match.charts && match.charts.length > 0) {
+                // Find chart that matches the filter, if none just take first OR use best matching difficulty (usually master)
+                const mainChart = match.charts.find(c => c.difficulty === 'master') || match.charts[0];
+                const type = (mainChart.type || '').toLowerCase();
+                if (type.includes('dx')) {
+                    typeBadge = '<div class="chart-type-badge type-dx">DX</div>';
+                } else if (type.includes('standard') || type.includes('std')) {
+                    typeBadge = '<div class="chart-type-badge type-std">STD</div>';
+                }
+            }
+
             return `
         <div class="result-card slide-up" style="animation-delay: ${index * 0.1}s">
           ${index === 0 ? '<div class="result-badge">#1 MATCH</div>' : `<div class="result-badge" style="background: var(--primary);">#${index + 1}</div>`}
+          ${typeBadge}
           <div class="result-img-container">
             <img src="${rawImgUrl}" alt="${match.title}" class="result-img" onerror="this.src='https://via.placeholder.com/300?text=No+Image'" />
             <div class="similarity-score">Similarity: ${match.score} pts</div>
           </div>
           <div class="result-info">
-            <div class="result-title" title="${match.title || 'Unknown Title'}">${match.title || match.imageName}</div>
+            <div class="result-title" title="${match.title || 'Unknown Title'}">
+                <span>${match.title || match.imageName}</span>
+                <button class="copy-btn" data-title="${match.title || ''}" title="Copy Title">
+                    <i class="far fa-copy"></i>
+                </button>
+            </div>
             <div class="result-artist" title="${match.artist || 'Unknown Artist'}">${match.artist || 'Unknown'}</div>
             
             <div class="result-meta-row">
-              ${match.version && match.version !== 'nan' ? `<div class="result-version">${match.version}</div>` : ''}
-              ${match.releaseDate && match.releaseDate !== 'nan' ? `<div class="result-date">${match.releaseDate}</div>` : ''}
+              ${match.version && match.version !== 'nan' && match.version !== 'None' ? `<div class="result-version">${match.version}</div>` : ''}
+              ${match.releaseDate && match.releaseDate !== 'nan' && match.releaseDate !== 'None' ? `<div class="result-date">${match.releaseDate}</div>` : ''}
             </div>
             
             ${chartDetails}

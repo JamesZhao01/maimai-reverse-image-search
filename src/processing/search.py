@@ -143,5 +143,6 @@ def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_feat
         
     return {
         "matches": top_results,
-        "dimensions": dimensions_meta
+        "dimensions": dimensions_meta,
+        "num_features": len(query_desc) if query_desc is not None else 0
     }
