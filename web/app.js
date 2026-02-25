@@ -88,13 +88,15 @@ document.addEventListener("DOMContentLoaded", () => {
         updateLevelLabel();
     });
 
+    let searchDebounceTimeout = null;
     const triggerReSearch = () => {
-        if (isLocalMode && currentQueryObjUrl) {
+        if (!isLocalMode || !currentQueryObjUrl) return;
+
+        if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+        searchDebounceTimeout = setTimeout(() => {
             currentSearchCancelled = true; // Cancel existing first
-            setTimeout(() => {
-                processLocal(null, currentQueryObjUrl);
-            }, 50);
-        }
+            processLocal(null, currentQueryObjUrl);
+        }, 300);
     };
 
     thresholdSlider.addEventListener("change", triggerReSearch);
@@ -102,6 +104,16 @@ document.addEventListener("DOMContentLoaded", () => {
     featuresSlider.addEventListener("change", triggerReSearch);
     minLevelSlider.addEventListener("change", triggerReSearch);
     maxLevelSlider.addEventListener("change", triggerReSearch);
+
+    // Z-index swapping for range sliders to prevent handles from blocking each other
+    minLevelSlider.addEventListener("mousedown", () => {
+        minLevelSlider.style.zIndex = "3";
+        maxLevelSlider.style.zIndex = "2";
+    });
+    maxLevelSlider.addEventListener("mousedown", () => {
+        maxLevelSlider.style.zIndex = "3";
+        minLevelSlider.style.zIndex = "2";
+    });
 
     cancelBtn.addEventListener("click", () => {
         currentSearchCancelled = true;
@@ -208,6 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewImage.src = "";
         resultsGrid.innerHTML = "";
         fileInput.value = "";
+        metricsText.innerText = "";
     });
 
     function handleFile(file) {
@@ -249,8 +262,6 @@ document.addEventListener("DOMContentLoaded", () => {
         cancelBtn.classList.add("hidden");
 
         try {
-            // Use absolute URL or relative depending on environment, but since this is dynamic 
-            // and remote mode only works locally or against a deployed API, we fallback to relative first.
             let fetchUrl = isRetry ? "http://127.0.0.1:8000/search" : "/search";
             const response = await fetch(fetchUrl, {
                 method: "POST",
@@ -276,16 +287,44 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             alert("An error occurred during search. Ensure the backend is running and the SIFT cache is built.");
         } finally {
-            if (isRetry || !error) {
+            if (isRetry || !isRetry) { // Corrected logic to ensure finishProcessing happens
                 finishProcessing();
             }
         }
+    }
+
+    // Cache for query features to avoid redundant extraction on slider changes
+    let featureCache = {
+        objUrl: null,
+        maxSize: null,
+        maxFeatures: null,
+        queryDesc: null, // OpenCV Mat
+        metrics: ""
+    };
+
+    function clearFeatureCache() {
+        if (featureCache.queryDesc) {
+            try { featureCache.queryDesc.delete(); } catch (e) { }
+            featureCache.queryDesc = null;
+        }
+        featureCache.objUrl = null;
     }
 
     // ==== LOCAL MODE ====
     function processLocal(file, objUrl) {
         if (!window.cvReady || !cvOrb || !localDb) {
             alert("Local environment not fully loaded.");
+            return;
+        }
+
+        const maxSize = parseInt(sizeSlider.value);
+        const maxFeatures = parseInt(featuresSlider.value);
+
+        // Check cache first
+        if (objUrl === featureCache.objUrl && maxSize === featureCache.maxSize && maxFeatures === featureCache.maxFeatures && featureCache.queryDesc) {
+            console.log("Using cached query features...");
+            metricsText.innerText = featureCache.metrics;
+            runMatchingLoop(featureCache.queryDesc);
             return;
         }
 
@@ -307,133 +346,53 @@ document.addEventListener("DOMContentLoaded", () => {
                     const srcRaw = cv.imread(imgElement);
                     const src = new cv.Mat();
 
-                    let maxSize = parseInt(sizeSlider.value);
+                    let currentMetrics = "";
                     if (srcRaw.cols > maxSize || srcRaw.rows > maxSize) {
                         let scale = maxSize / Math.max(srcRaw.cols, srcRaw.rows);
                         let dsize = new cv.Size(Math.round(srcRaw.cols * scale), Math.round(srcRaw.rows * scale));
                         cv.resize(srcRaw, src, dsize, 0, 0, cv.INTER_AREA);
-                        metricsText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${dsize.width}x${dsize.height}`;
+                        currentMetrics = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${dsize.width}x${dsize.height}`;
                     } else {
                         srcRaw.copyTo(src);
-                        metricsText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${src.cols}x${src.rows}`;
+                        currentMetrics = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${src.cols}x${src.rows}`;
                     }
+                    metricsText.innerText = currentMetrics;
                     srcRaw.delete();
 
                     const gray = new cv.Mat();
                     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
 
-                    const maxFeatures = parseInt(featuresSlider.value);
-                    if (cvOrb) cvOrb.delete();
-                    cvOrb = new cv.ORB(maxFeatures);
+                    // Re-create ORB only if features changed
+                    if (!cvOrb || cvOrb.maxFeatures !== maxFeatures) {
+                        if (cvOrb) try { cvOrb.delete(); } catch (e) { }
+                        cvOrb = new cv.ORB(maxFeatures);
+                    }
 
                     const keypoints = new cv.KeyPointVector();
                     const queryDesc = new cv.Mat();
                     cvOrb.detectAndCompute(gray, new cv.Mat(), keypoints, queryDesc);
 
+                    src.delete(); gray.delete(); keypoints.delete();
+
                     if (queryDesc.empty()) {
+                        console.warn("No features detected in query image.");
+                        queryDesc.delete();
                         displayResults([]);
-                        src.delete(); gray.delete(); keypoints.delete(); queryDesc.delete();
+                        finishProcessing();
                         return;
                     }
 
-                    progressText.innerText = "Matching database...";
-                    let results = [];
-                    const dbKeys = Object.keys(localDb);
-                    let currentIndex = 0;
-                    const batchSize = 100;
-
-                    const matchThreshold = parseFloat(thresholdSlider.value);
-                    const minLevel = parseFloat(minLevelSlider.value);
-                    const maxLevel = parseFloat(maxLevelSlider.value);
-
-                    const b64ToUint8Array = (b64) => {
-                        const bin = atob(b64);
-                        const bytes = new Uint8Array(bin.length);
-                        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                        return bytes;
+                    // Update Cache
+                    clearFeatureCache();
+                    featureCache = {
+                        objUrl: objUrl,
+                        maxSize: maxSize,
+                        maxFeatures: maxFeatures,
+                        queryDesc: queryDesc,
+                        metrics: currentMetrics
                     };
 
-                    function processBatch() {
-                        if (currentSearchCancelled || !isLocalMode) {
-                            src.delete(); gray.delete(); keypoints.delete(); queryDesc.delete();
-                            finishProcessing();
-                            displayResults([]);
-                            return;
-                        }
-
-                        let end = Math.min(currentIndex + batchSize, dbKeys.length);
-                        for (let i = currentIndex; i < end; i++) {
-                            let key = dbKeys[i];
-
-                            // Difficulty Filter (Local)
-                            let meta = localMetadata[key];
-                            if (meta && meta.charts) {
-                                let match_range = false;
-                                for (let chart of meta.charts) {
-                                    let lvl = parseFloat(chart.internalLevel || chart.level || 0);
-                                    if (lvl >= minLevel && lvl <= maxLevel) {
-                                        match_range = true;
-                                        break;
-                                    }
-                                }
-                                if (!match_range) continue;
-                            }
-
-                            let val = localDb[key];
-                            let arr = b64ToUint8Array(val.data);
-                            let dbMat = cv.matFromArray(val.rows, 32, cv.CV_8U, arr);
-
-                            let matches = new cv.DMatchVectorVector();
-                            cvBf.knnMatch(queryDesc, dbMat, matches, 2);
-
-                            let good = 0;
-                            for (let j = 0; j < matches.size(); j++) {
-                                let match = matches.get(j);
-                                if (match.size() == 2) {
-                                    let m = match.get(0);
-                                    let n = match.get(1);
-                                    if (m.distance < matchThreshold * n.distance) {
-                                        good++;
-                                    }
-                                }
-                            }
-
-                            if (good > 0) {
-                                results.push({ imageName: key, score: good });
-                            }
-                            dbMat.delete();
-                            matches.delete();
-                        }
-
-                        currentIndex = end;
-                        progressText.innerText = `Matched ${currentIndex} / ${dbKeys.length}`;
-
-                        if (currentIndex < dbKeys.length) {
-                            requestAnimationFrame(processBatch);
-                        } else {
-                            results.sort((a, b) => b.score - a.score);
-                            let topK = results.slice(0, 5);
-
-                            // Attach metadata
-                            topK.forEach(r => {
-                                let meta = localMetadata[r.imageName];
-                                if (meta) {
-                                    r.songId = meta.songId;
-                                    r.title = meta.title;
-                                    r.artist = meta.artist;
-                                    r.version = meta.version;
-                                    r.charts = meta.charts;
-                                    r.releaseDate = meta.releaseDate;
-                                }
-                            });
-
-                            src.delete(); gray.delete(); keypoints.delete(); queryDesc.delete();
-                            displayResults(topK);
-                            finishProcessing();
-                        }
-                    }
-
-                    requestAnimationFrame(processBatch);
+                    runMatchingLoop(queryDesc);
 
                 } catch (e) {
                     console.error("Local CV Processing Error: ", e);
@@ -442,6 +401,114 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }, 50);
         };
+    }
+
+    function runMatchingLoop(queryDesc) {
+        processingStatus.classList.remove('hidden');
+        progressText.innerText = "Matching database...";
+        cancelBtn.classList.remove("hidden");
+        cancelBtn.disabled = false;
+        cancelBtn.innerText = "Cancel Search";
+        currentSearchCancelled = false;
+
+        let results = [];
+        const dbKeys = Object.keys(localDb);
+        let currentIndex = 0;
+        const batchSize = 100;
+
+        const matchThreshold = parseFloat(thresholdSlider.value);
+        const minLevel = parseFloat(minLevelSlider.value);
+        const maxLevel = parseFloat(maxLevelSlider.value);
+
+        const b64ToUint8Array = (b64) => {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes;
+        };
+
+        function processBatch() {
+            try {
+                if (currentSearchCancelled || !isLocalMode) {
+                    finishProcessing();
+                    return;
+                }
+
+                let end = Math.min(currentIndex + batchSize, dbKeys.length);
+                for (let i = currentIndex; i < end; i++) {
+                    let key = dbKeys[i];
+
+                    // Difficulty Filter (Local)
+                    let meta = localMetadata[key];
+                    if (meta && meta.charts) {
+                        let match_range = false;
+                        for (let chart of meta.charts) {
+                            let lvl = parseFloat(chart.internalLevel || chart.level || 0);
+                            if (lvl >= minLevel && lvl <= maxLevel) {
+                                match_range = true;
+                                break;
+                            }
+                        }
+                        if (!match_range) continue;
+                    }
+
+                    let val = localDb[key];
+                    let arr = b64ToUint8Array(val.data);
+                    let dbMat = cv.matFromArray(val.rows, 32, cv.CV_8U, arr);
+
+                    let matches = new cv.DMatchVectorVector();
+                    cvBf.knnMatch(queryDesc, dbMat, matches, 2);
+
+                    let good = 0;
+                    for (let j = 0; j < matches.size(); j++) {
+                        let match = matches.get(j);
+                        if (match.size() == 2) {
+                            let m = match.get(0);
+                            let n = match.get(1);
+                            if (m.distance < matchThreshold * n.distance) {
+                                good++;
+                            }
+                        }
+                    }
+
+                    if (good > 0) {
+                        results.push({ imageName: key, score: good });
+                    }
+                    dbMat.delete();
+                    matches.delete();
+                }
+
+                currentIndex = end;
+                progressText.innerText = `Matched ${currentIndex} / ${dbKeys.length}`;
+
+                if (currentIndex < dbKeys.length) {
+                    requestAnimationFrame(processBatch);
+                } else {
+                    results.sort((a, b) => b.score - a.score);
+                    let topK = results.slice(0, 5);
+
+                    topK.forEach(r => {
+                        let meta = localMetadata[r.imageName];
+                        if (meta) {
+                            r.songId = meta.songId;
+                            r.title = meta.title;
+                            r.artist = meta.artist;
+                            r.version = meta.version;
+                            r.charts = meta.charts;
+                            r.releaseDate = meta.releaseDate;
+                        }
+                    });
+
+                    displayResults(topK);
+                    finishProcessing();
+                }
+            } catch (e) {
+                console.error("Batch processing error:", e);
+                finishProcessing();
+            }
+        }
+
+        requestAnimationFrame(processBatch);
     }
 
     function finishProcessing() {
