@@ -28,7 +28,7 @@ def main():
         if song.get('category') == '宴会場': # Utage
             continue
             
-        has_13 = False
+        has_valid_chart = False
         for sheet in song.get('sheets', []):
             if sheet.get('type') == 'utage':
                 continue
@@ -37,12 +37,9 @@ def main():
             level = sheet.get('levelValue')
             val = internal if internal is not None else level
             
-            if val is not None and val >= 13.0:
-                has_13 = True
+            if val is not None:
+                has_valid_chart = True
                 
-                # We will record the chart data, or maybe just the song metadata.
-                # The design doc says "pull all data. You only need to pull charts that are level 13 or higher".
-                # It says "Make a dataset... Also scrape metadata, like note count, internal level, version."
                 chart_info = {
                     'songId': song['songId'],
                     'title': song['title'],
@@ -64,7 +61,7 @@ def main():
                 }
                 chart_list.append(chart_info)
                 
-        if has_13 and song.get('imageName'):
+        if has_valid_chart and song.get('imageName'):
             img_name = song['imageName']
             img_path = os.path.join(RAW_DIR, img_name)
             if not os.path.exists(img_path):

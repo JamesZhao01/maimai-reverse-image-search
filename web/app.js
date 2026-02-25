@@ -261,11 +261,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     const srcRaw = cv.imread(imgElement);
                     const src = new cv.Mat();
 
+                    progressText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${src.cols}x${src.rows}`;
+
                     let maxSize = parseInt(sizeSlider.value);
                     if (srcRaw.cols > maxSize || srcRaw.rows > maxSize) {
                         let scale = maxSize / Math.max(srcRaw.cols, srcRaw.rows);
                         let dsize = new cv.Size(Math.round(srcRaw.cols * scale), Math.round(srcRaw.rows * scale));
                         cv.resize(srcRaw, src, dsize, 0, 0, cv.INTER_AREA);
+                        progressText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${dsize.width}x${dsize.height}`;
                     } else {
                         srcRaw.copyTo(src);
                     }
