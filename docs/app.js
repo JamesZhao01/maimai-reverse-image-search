@@ -31,7 +31,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const thresholdLabel = document.getElementById("threshold-label");
     const sizeSlider = document.getElementById("size-slider");
     const sizeLabel = document.getElementById("size-label");
+    const featuresSlider = document.getElementById("features-slider");
+    const featuresLabel = document.getElementById("features-label");
     const lastUpdatedLabel = document.getElementById("last-updated");
+    const metricsText = document.getElementById("metrics-text");
     const cancelBtn = document.getElementById("cancel-btn");
     const progressText = document.getElementById("progress-text");
     const processingStatus = document.getElementById("processing-status");
@@ -60,6 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
         sizeLabel.innerText = `Max Image Size: ${e.target.value}px`;
     });
 
+    featuresSlider.addEventListener("input", (e) => {
+        featuresLabel.innerText = `Max ORB Features: ${e.target.value}`;
+    });
+
     const triggerReSearch = () => {
         if (isLocalMode && currentQueryObjUrl) {
             currentSearchCancelled = true; // Cancel existing first
@@ -71,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     thresholdSlider.addEventListener("change", triggerReSearch);
     sizeSlider.addEventListener("change", triggerReSearch);
+    featuresSlider.addEventListener("change", triggerReSearch);
 
     cancelBtn.addEventListener("click", () => {
         currentSearchCancelled = true;
@@ -192,6 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsArea.classList.add("hidden");
         previewArea.classList.remove("hidden");
         resultsGrid.innerHTML = '';
+        metricsText.innerText = '';
 
         currentQueryObjUrl = objUrl;
 
@@ -206,6 +215,13 @@ document.addEventListener("DOMContentLoaded", () => {
     async function uploadImage(file, isRetry = false) {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("threshold", thresholdSlider.value);
+        formData.append("maxSize", sizeSlider.value);
+        formData.append("maxFeatures", featuresSlider.value);
+
+        processingStatus.classList.remove('hidden');
+        progressText.innerText = "Processing remotely...";
+        cancelBtn.classList.add("hidden");
 
         try {
             // Use absolute URL or relative depending on environment, but since this is dynamic 
@@ -221,6 +237,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const data = await response.json();
+
+            if (data.dimensions && data.dimensions.src_w) {
+                metricsText.innerText = `Source Dimension: ${data.dimensions.src_w}x${data.dimensions.src_h}\nExtraction Dimension: ${data.dimensions.ext_w}x${data.dimensions.ext_h}`;
+            }
+
             displayResults(data.matches || []);
         } catch (error) {
             console.error("Upload error:", error);
@@ -261,21 +282,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     const srcRaw = cv.imread(imgElement);
                     const src = new cv.Mat();
 
-                    progressText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${src.cols}x${src.rows}`;
-
                     let maxSize = parseInt(sizeSlider.value);
                     if (srcRaw.cols > maxSize || srcRaw.rows > maxSize) {
                         let scale = maxSize / Math.max(srcRaw.cols, srcRaw.rows);
                         let dsize = new cv.Size(Math.round(srcRaw.cols * scale), Math.round(srcRaw.rows * scale));
                         cv.resize(srcRaw, src, dsize, 0, 0, cv.INTER_AREA);
-                        progressText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${dsize.width}x${dsize.height}`;
+                        metricsText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${dsize.width}x${dsize.height}`;
                     } else {
                         srcRaw.copyTo(src);
+                        metricsText.innerText = `Source Dimension: ${srcRaw.cols}x${srcRaw.rows}\nExtraction Dimension: ${src.cols}x${src.rows}`;
                     }
                     srcRaw.delete();
 
                     const gray = new cv.Mat();
                     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+                    const maxFeatures = parseInt(featuresSlider.value);
+                    if (cvOrb) cvOrb.delete();
+                    cvOrb = new cv.ORB(maxFeatures);
 
                     const keypoints = new cv.KeyPointVector();
                     const queryDesc = new cv.Mat();

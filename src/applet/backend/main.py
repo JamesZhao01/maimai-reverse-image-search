@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -24,10 +24,15 @@ async def startup_event():
     init_search()
 
 @app.post("/search")
-async def search_endpoint(file: UploadFile = File(...)):
+async def search_endpoint(
+    file: UploadFile = File(...),
+    threshold: float = Form(0.7),
+    maxSize: int = Form(400),
+    maxFeatures: int = Form(1000)
+):
     contents = await file.read()
-    results = search_image_bytes(contents, top_k=5)
-    return {"matches": results}
+    results = search_image_bytes(contents, top_k=5, threshold=threshold, max_size=maxSize, max_features=maxFeatures)
+    return results
 
 # Mount images directory to serve thumbnails
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))

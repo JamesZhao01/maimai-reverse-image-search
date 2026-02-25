@@ -55,21 +55,36 @@ def get_metadata(image_name):
         'charts': charts
     }
 
-def search_image_bytes(img_bytes, top_k=5):
+def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_features=1000):
     if not _sift_cache:
-        return []
+        return {"matches": [], "dimensions": {}}
 
     # Decode image from bytes
     nparr = np.frombuffer(img_bytes, np.uint8)
     query_img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
     if query_img is None:
-        return []
+        return {"matches": [], "dimensions": {}}
         
-    orb = cv2.ORB_create(nfeatures=1000)
+    src_h, src_w = query_img.shape[:2]
+    
+    if src_w > max_size or src_h > max_size:
+        scale = max_size / max(src_w, src_h)
+        query_img = cv2.resize(query_img, (int(src_w * scale), int(src_h * scale)), interpolation=cv2.INTER_AREA)
+
+    ext_h, ext_w = query_img.shape[:2]
+
+    orb = cv2.ORB_create(nfeatures=max_features)
     _, query_desc = orb.detectAndCompute(query_img, None)
 
+    dimensions_meta = {
+        "src_w": src_w,
+        "src_h": src_h,
+        "ext_w": ext_w,
+        "ext_h": ext_h
+    }
+
     if query_desc is None or len(query_desc) < 2:
-        return []
+        return {"matches": [], "dimensions": dimensions_meta}
 
     results = []
     
@@ -85,7 +100,7 @@ def search_image_bytes(img_bytes, top_k=5):
             for pair in matches:
                 if len(pair) == 2:
                     m, n = pair
-                    if m.distance < 0.7 * n.distance:
+                    if m.distance < threshold * n.distance:
                         good_matches += 1
                         
             if good_matches > 0:
@@ -104,4 +119,7 @@ def search_image_bytes(img_bytes, top_k=5):
     for r in top_results:
         r.update(get_metadata(r['imageName']))
         
-    return top_results
+    return {
+        "matches": top_results,
+        "dimensions": dimensions_meta
+    }

@@ -52,6 +52,14 @@
             <span class="slider-bound">Detailed</span>
           </div>
         </div>
+        <div class="setting-group">
+          <label for="features-slider" id="features-label">Max ORB Features: 1000</label>
+          <div class="slider-wrapper">
+            <span class="slider-bound">Fast (100)</span>
+            <input type="range" id="features-slider" min="100" max="2000" step="100" value="1000">
+            <span class="slider-bound">Detailed (2000)</span>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -72,6 +80,7 @@
     <div class="preview-area hidden" id="preview-area">
       <h3>Searching for...</h3>
       <img id="preview-image" src="" alt="Query Image Preview" />
+      <div id="metrics-text" class="metrics-text"></div>
       <div class="processing-status hidden" id="processing-status">
         <div class="loader-container">
           <div class="loader"></div>
