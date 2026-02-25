@@ -11,8 +11,8 @@ WEB_DIR = os.path.join('web')
 def main():
     print(f"Exporting SIFT database for the web...")
     
-    # We will limit the keypoints to 100 to save bandwidth for the static site
-    sift = cv2.SIFT_create(nfeatures=100)
+    # Use ORB since SIFT isn't in default opencv.js
+    orb = cv2.ORB_create(nfeatures=500)
     
     db = {}
     total = 0
@@ -26,11 +26,11 @@ def main():
         if img is None:
             continue
             
-        _, desc = sift.detectAndCompute(img, None)
+        _, desc = orb.detectAndCompute(img, None)
         
         if desc is not None and len(desc) > 0:
-            # Convert to float32, encode to base64
-            encoded = base64.b64encode(desc.astype(np.float32).tobytes()).decode('ascii')
+            # ORB descriptors are uint8
+            encoded = base64.b64encode(desc.tobytes()).decode('ascii')
             db[filename] = {
                 "rows": desc.shape[0],
                 "data": encoded

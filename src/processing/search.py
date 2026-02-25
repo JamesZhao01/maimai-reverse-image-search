@@ -10,10 +10,10 @@ METADATA_FILE = os.path.join('data', 'processed', 'metadata.csv')
 
 _sift_cache = None
 _metadata_df = None
-_flann = None
+_bf = None
 
 def init_search():
-    global _sift_cache, _metadata_df, _flann
+    global _sift_cache, _metadata_df, _bf
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE, 'rb') as f:
             _sift_cache = pickle.load(f)
@@ -25,10 +25,7 @@ def init_search():
     else:
         _metadata_df = pd.DataFrame()
 
-    FLANN_INDEX_KDTREE = 1
-    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    search_params = dict(checks=50)
-    _flann = cv2.FlannBasedMatcher(index_params, search_params)
+    _bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
     print("Search module initialized.")
 
 def get_metadata(image_name):
@@ -68,8 +65,8 @@ def search_image_bytes(img_bytes, top_k=5):
     if query_img is None:
         return []
         
-    sift = cv2.SIFT_create()
-    _, query_desc = sift.detectAndCompute(query_img, None)
+    orb = cv2.ORB_create(nfeatures=1000)
+    _, query_desc = orb.detectAndCompute(query_img, None)
 
     if query_desc is None or len(query_desc) < 2:
         return []
@@ -81,7 +78,7 @@ def search_image_bytes(img_bytes, top_k=5):
             continue
             
         try:
-            matches = _flann.knnMatch(query_desc, db_desc, k=2)
+            matches = _bf.knnMatch(query_desc, db_desc, k=2)
             
             # Lowe's ratio test
             good_matches = 0

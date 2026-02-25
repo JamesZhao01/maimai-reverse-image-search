@@ -13,8 +13,8 @@ def extract_features(img_path):
     img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         return None, None
-    sift = cv2.SIFT_create()
-    keypoints, descriptors = sift.detectAndCompute(img, None)
+    orb = cv2.ORB_create(nfeatures=1000)
+    keypoints, descriptors = orb.detectAndCompute(img, None)
     return keypoints, descriptors
 
 def main():

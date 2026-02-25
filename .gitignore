@@ -57,3 +57,6 @@ models/*.h5
 # Keep directories but ignore contents (if applicable)
 !data/.gitkeep
 !models/.gitkeep
+
+# Build Directories
+# (Intentionally leaving docs/ un-ignored for GitHub Pages deployment)

@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>maimai Reverse Image Search</title>
   <meta name="description" content="Find the maimai song matching your chart screenshot." />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <script async src="https://docs.opencv.org/4.10.0/opencv.js" onload="onOpenCvReady();" id="opencvjs"></script>
 </head>
 <body>
   <div class="background-decor"></div>
@@ -16,6 +17,20 @@
       <h1>m<i>ai</i>m<i>ai</i></h1>
       <h2>Reverse Image Search</h2>
       <p>Identify level 13+ charts by uploading a screenshot.</p>
+      <p id="last-updated" class="last-updated"></p>
+      
+      <div class="mode-toggle">
+        <label class="switch">
+          <input type="checkbox" id="local-mode-toggle">
+          <span class="slider round"></span>
+        </label>
+        <span id="mode-label">Remote Mode</span>
+      </div>
+      
+      <div class="threshold-container hidden" id="threshold-container">
+        <label for="threshold-slider" id="threshold-label">Match strictness (Lowe's Ratio): 0.70</label>
+        <input type="range" id="threshold-slider" min="0.4" max="0.95" step="0.05" value="0.7">
+      </div>
     </header>
 
     <div class="upload-area" id="drop-zone">
@@ -49,6 +64,6 @@
     </section>
   </main>
 
-  <script src="/app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

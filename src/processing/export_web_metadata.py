@@ -40,5 +40,14 @@ def main():
         
     print(f"Exported metadata for {len(db)} images to {out_file}")
 
+    # Export last updated info
+    import datetime
+    mtime = os.path.getmtime(metadata_csv)
+    last_updated = datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M')
+    info_file = os.path.join(WEB_DIR, 'info.json')
+    with open(info_file, 'w') as f:
+        json.dump({'lastUpdated': last_updated}, f)
+    print(f"Exported info.json with lastUpdated: {last_updated}")
+
 if __name__ == '__main__':
     main()
