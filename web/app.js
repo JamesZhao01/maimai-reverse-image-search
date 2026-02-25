@@ -5,9 +5,12 @@ let cvOrb = null;
 let cvBf = null;
 let cvReady = false;
 
-window.onOpenCvReady = function () {
-    cvReady = true;
-    console.log("OpenCV.js is loaded and ready.");
+// cvReady is now defined globally in index.html
+window.initOpenCvDependentState = function () {
+    const modeToggle = document.getElementById("local-mode-toggle");
+    if (modeToggle && modeToggle.checked) {
+        modeToggle.dispatchEvent(new Event('change'));
+    }
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -61,11 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (isLocalMode && (!localDb || !localMetadata)) {
-            if (!cvReady) {
-                alert("OpenCV.js has not finished loading. Please wait a moment.");
-                modeToggle.checked = false;
-                isLocalMode = false;
-                modeLabel.innerText = "Remote Mode";
+            if (!window.cvReady) {
+                console.log("OpenCV.js has not finished loading yet, waiting for callback.");
                 return;
             }
 
@@ -204,7 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ==== LOCAL MODE ====
     function processLocal(file, objUrl) {
-        if (!cvReady || !cvOrb || !localDb) {
+        if (!window.cvReady || !cvOrb || !localDb) {
             alert("Local environment not fully loaded.");
             return;
         }
