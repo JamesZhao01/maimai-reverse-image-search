@@ -201,10 +201,63 @@ input:checked + .slider:before {
   letter-spacing: 0.5px;
 }
 
-#threshold-slider, #size-slider {
+#threshold-slider, #size-slider, #features-slider {
   flex: 1;
   cursor: pointer;
   accent-color: var(--primary);
+}
+
+/* Range Slider (Dual Handle) */
+.range-slider-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.range-slider-container input[type="range"] {
+  position: absolute;
+  width: 100%;
+  pointer-events: none;
+  -webkit-appearance: none;
+  background: transparent;
+  z-index: 2;
+  margin: 0;
+}
+
+.range-slider-container input[type="range"]::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.range-slider-container input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  background: var(--secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid white;
+}
+
+.range-track {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 3px;
+  z-index: 1;
 }
 
 /* Upload Area */

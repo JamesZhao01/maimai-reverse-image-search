@@ -28,11 +28,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const uploadBtn = document.querySelector(".upload-btn");
     const settingsPanel = document.getElementById("settings-panel");
     const thresholdSlider = document.getElementById("threshold-slider");
-    const thresholdLabel = document.getElementById("threshold-label");
-    const sizeSlider = document.getElementById("size-slider");
-    const sizeLabel = document.getElementById("size-label");
     const featuresSlider = document.getElementById("features-slider");
     const featuresLabel = document.getElementById("features-label");
+    const minLevelSlider = document.getElementById("min-level-slider");
+    const maxLevelSlider = document.getElementById("max-level-slider");
+    const levelLabel = document.getElementById("level-label");
     const lastUpdatedLabel = document.getElementById("last-updated");
     const metricsText = document.getElementById("metrics-text");
     const cancelBtn = document.getElementById("cancel-btn");
@@ -67,6 +67,24 @@ document.addEventListener("DOMContentLoaded", () => {
         featuresLabel.innerText = `Max ORB Features: ${e.target.value}`;
     });
 
+    const updateLevelLabel = () => {
+        levelLabel.innerText = `Difficulty Filter: ${parseFloat(minLevelSlider.value).toFixed(1)} - ${parseFloat(maxLevelSlider.value).toFixed(1)}`;
+    };
+
+    minLevelSlider.addEventListener("input", (e) => {
+        if (parseFloat(minLevelSlider.value) > parseFloat(maxLevelSlider.value)) {
+            maxLevelSlider.value = minLevelSlider.value;
+        }
+        updateLevelLabel();
+    });
+
+    maxLevelSlider.addEventListener("input", (e) => {
+        if (parseFloat(maxLevelSlider.value) < parseFloat(minLevelSlider.value)) {
+            minLevelSlider.value = maxLevelSlider.value;
+        }
+        updateLevelLabel();
+    });
+
     const triggerReSearch = () => {
         if (isLocalMode && currentQueryObjUrl) {
             currentSearchCancelled = true; // Cancel existing first
@@ -79,6 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
     thresholdSlider.addEventListener("change", triggerReSearch);
     sizeSlider.addEventListener("change", triggerReSearch);
     featuresSlider.addEventListener("change", triggerReSearch);
+    minLevelSlider.addEventListener("change", triggerReSearch);
+    maxLevelSlider.addEventListener("change", triggerReSearch);
 
     cancelBtn.addEventListener("click", () => {
         currentSearchCancelled = true;
@@ -218,6 +238,8 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("threshold", thresholdSlider.value);
         formData.append("maxSize", sizeSlider.value);
         formData.append("maxFeatures", featuresSlider.value);
+        formData.append("minLevel", minLevelSlider.value);
+        formData.append("maxLevel", maxLevelSlider.value);
 
         processingStatus.classList.remove('hidden');
         progressText.innerText = "Processing remotely...";
@@ -318,6 +340,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const batchSize = 100;
 
                     const matchThreshold = parseFloat(thresholdSlider.value);
+                    const minLevel = parseFloat(minLevelSlider.value);
+                    const maxLevel = parseFloat(maxLevelSlider.value);
 
                     const b64ToUint8Array = (b64) => {
                         const bin = atob(b64);
@@ -337,6 +361,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         let end = Math.min(currentIndex + batchSize, dbKeys.length);
                         for (let i = currentIndex; i < end; i++) {
                             let key = dbKeys[i];
+
+                            // Difficulty Filter (Local)
+                            let meta = localMetadata[key];
+                            if (meta && meta.charts) {
+                                let match_range = false;
+                                for (let chart of meta.charts) {
+                                    let lvl = parseFloat(chart.internalLevel || chart.level || 0);
+                                    if (lvl >= minLevel && lvl <= maxLevel) {
+                                        match_range = true;
+                                        break;
+                                    }
+                                }
+                                if (!match_range) continue;
+                            }
+
                             let val = localDb[key];
                             let arr = b64ToUint8Array(val.data);
                             let dbMat = cv.matFromArray(val.rows, 32, cv.CV_8U, arr);

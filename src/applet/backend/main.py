@@ -28,10 +28,12 @@ async def search_endpoint(
     file: UploadFile = File(...),
     threshold: float = Form(0.7),
     maxSize: int = Form(400),
-    maxFeatures: int = Form(1000)
+    maxFeatures: int = Form(1000),
+    minLevel: float = Form(0.0),
+    maxLevel: float = Form(15.0)
 ):
     contents = await file.read()
-    results = search_image_bytes(contents, top_k=5, threshold=threshold, max_size=maxSize, max_features=maxFeatures)
+    results = search_image_bytes(contents, top_k=5, threshold=threshold, max_size=maxSize, max_features=maxFeatures, min_level=minLevel, max_level=maxLevel)
     return results
 
 # Mount images directory to serve thumbnails

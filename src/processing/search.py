@@ -55,7 +55,7 @@ def get_metadata(image_name):
         'charts': charts
     }
 
-def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_features=1000):
+def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_features=1000, min_level=0.0, max_level=15.0):
     if not _sift_cache:
         return {"matches": [], "dimensions": {}}
 
@@ -92,6 +92,28 @@ def search_image_bytes(img_bytes, top_k=5, threshold=0.7, max_size=400, max_feat
         if db_desc is None or len(db_desc) < 2:
             continue
             
+        # Level filtering
+        meta = get_metadata(filename)
+        if meta and 'charts' in meta:
+            # Check if any chart in this song falls within the range
+            match_range = False
+                for chart in meta['charts']:
+                    if not isinstance(chart, dict):
+                        continue
+                    try:
+                        lvl_val = chart.get('internalLevel', '0') or chart.get('levelValue', '0') or '0'
+                        lvl = float(lvl_val)
+                        if min_level <= lvl <= max_level:
+                            match_range = True
+                            break
+                    except (ValueError, TypeError):
+                        continue
+            if not match_range:
+                continue
+
+        if _bf is None:
+            continue
+
         try:
             matches = _bf.knnMatch(query_desc, db_desc, k=2)
             
