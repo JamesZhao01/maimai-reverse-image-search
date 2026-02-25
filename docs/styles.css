@@ -162,16 +162,25 @@ input:checked + .slider:before {
   color: var(--text-main);
 }
 
-/* Threshold Slider */
-.threshold-container {
+/* Settings Panel */
+.settings-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-top: 15px;
-  gap: 8px;
+  gap: 16px;
+  width: 100%;
 }
 
-#threshold-label {
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+#threshold-label, #size-label {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
@@ -192,7 +201,7 @@ input:checked + .slider:before {
   letter-spacing: 0.5px;
 }
 
-#threshold-slider {
+#threshold-slider, #size-slider {
   flex: 1;
   cursor: pointer;
   accent-color: var(--primary);
@@ -293,14 +302,51 @@ input:checked + .slider:before {
   border: 1px solid var(--border-light);
 }
 
+.processing-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.loader-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: var(--bg-card);
+  padding: 10px 25px 10px 15px;
+  border-radius: 30px;
+  border: 1px solid var(--border-light);
+}
+
+#progress-text {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
 .loader {
-  width: 48px;
-  height: 48px;
-  border: 4px solid var(--border-light);
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-light);
   border-bottom-color: var(--secondary);
   border-radius: 50%;
   display: inline-block;
   animation: rotation 1s linear infinite;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid var(--secondary);
+  color: var(--secondary);
+  margin-top: 5px;
+  padding: 8px 24px;
+}
+
+.cancel-btn:hover {
+  background: rgba(230, 44, 118, 0.1);
+  box-shadow: 0 4px 15px rgba(230, 44, 118, 0.2);
 }
 
 @keyframes rotation {

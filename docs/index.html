@@ -35,12 +35,22 @@
         <span id="mode-label">Local Mode (WASM)</span>
       </div>
       
-      <div class="threshold-container hidden" id="threshold-container">
-        <label for="threshold-slider" id="threshold-label">Match strictness (Lowe's Ratio): 0.70</label>
-        <div class="slider-wrapper">
-          <span class="slider-bound">Strict</span>
-          <input type="range" id="threshold-slider" min="0.4" max="0.95" step="0.05" value="0.7">
-          <span class="slider-bound">Lenient</span>
+      <div class="settings-panel hidden" id="settings-panel">
+        <div class="setting-group">
+          <label for="threshold-slider" id="threshold-label">Match strictness (Lowe's Ratio): 0.70</label>
+          <div class="slider-wrapper">
+            <span class="slider-bound">Strict</span>
+            <input type="range" id="threshold-slider" min="0.4" max="0.95" step="0.05" value="0.7">
+            <span class="slider-bound">Lenient</span>
+          </div>
+        </div>
+        <div class="setting-group">
+          <label for="size-slider" id="size-label">Max Image Size: 400px</label>
+          <div class="slider-wrapper">
+            <span class="slider-bound">Fast</span>
+            <input type="range" id="size-slider" min="200" max="1000" step="100" value="400">
+            <span class="slider-bound">Detailed</span>
+          </div>
         </div>
       </div>
     </header>
@@ -62,7 +72,13 @@
     <div class="preview-area hidden" id="preview-area">
       <h3>Searching for...</h3>
       <img id="preview-image" src="" alt="Query Image Preview" />
-      <div class="loader"></div>
+      <div class="processing-status hidden" id="processing-status">
+        <div class="loader-container">
+          <div class="loader"></div>
+          <p id="progress-text">Extracting features...</p>
+        </div>
+        <button id="cancel-btn" class="upload-btn cancel-btn hidden">Cancel Search</button>
+      </div>
     </div>
 
     <section class="results-area hidden" id="results-area">

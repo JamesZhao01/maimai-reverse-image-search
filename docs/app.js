@@ -26,10 +26,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const modeToggle = document.getElementById("local-mode-toggle");
     const modeLabel = document.getElementById("mode-label");
     const uploadBtn = document.querySelector(".upload-btn");
-    const thresholdContainer = document.getElementById("threshold-container");
+    const settingsPanel = document.getElementById("settings-panel");
     const thresholdSlider = document.getElementById("threshold-slider");
     const thresholdLabel = document.getElementById("threshold-label");
+    const sizeSlider = document.getElementById("size-slider");
+    const sizeLabel = document.getElementById("size-label");
     const lastUpdatedLabel = document.getElementById("last-updated");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const progressText = document.getElementById("progress-text");
+    const processingStatus = document.getElementById("processing-status");
+
+    let currentSearchCancelled = false;
 
     // Base URL computation for GitHub Pages
     const basePath = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
@@ -49,11 +56,26 @@ document.addEventListener("DOMContentLoaded", () => {
         thresholdLabel.innerText = `Match strictness (Lowe's Ratio): ${parseFloat(e.target.value).toFixed(2)}`;
     });
 
-    // Auto-search on slider release for performance (or 'input' for absolute real-time)
-    thresholdSlider.addEventListener("change", (e) => {
+    sizeSlider.addEventListener("input", (e) => {
+        sizeLabel.innerText = `Max Image Size: ${e.target.value}px`;
+    });
+
+    const triggerReSearch = () => {
         if (isLocalMode && currentQueryObjUrl) {
-            processLocal(null, currentQueryObjUrl);
+            currentSearchCancelled = true; // Cancel existing first
+            setTimeout(() => {
+                processLocal(null, currentQueryObjUrl);
+            }, 50);
         }
+    };
+
+    thresholdSlider.addEventListener("change", triggerReSearch);
+    sizeSlider.addEventListener("change", triggerReSearch);
+
+    cancelBtn.addEventListener("click", () => {
+        currentSearchCancelled = true;
+        cancelBtn.disabled = true;
+        cancelBtn.innerText = "Cancelling...";
     });
 
     // Trigger mode loading correctly immediately on startup since default is true
@@ -68,9 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
         modeLabel.innerText = isLocalMode ? "Local Mode (WASM)" : "Remote Mode";
 
         if (isLocalMode) {
-            thresholdContainer.classList.remove("hidden");
+            settingsPanel.classList.remove("hidden");
         } else {
-            thresholdContainer.classList.add("hidden");
+            settingsPanel.classList.add("hidden");
         }
 
         if (isLocalMode && (!localDb || !localMetadata)) {
@@ -221,8 +243,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const loader = previewArea.querySelector('.loader');
-        loader.classList.remove('hidden');
+        processingStatus.classList.remove('hidden');
+        progressText.innerText = "Loading image...";
+        cancelBtn.classList.remove("hidden");
+        cancelBtn.disabled = false;
+        cancelBtn.innerText = "Cancel Search";
+        currentSearchCancelled = false;
 
         const imgElement = new Image();
         imgElement.src = objUrl;
@@ -230,7 +256,21 @@ document.addEventListener("DOMContentLoaded", () => {
             // Small timeout to allow UI update
             setTimeout(() => {
                 try {
-                    const src = cv.imread(imgElement);
+                    progressText.innerText = "Downsampling & extracting features...";
+
+                    const srcRaw = cv.imread(imgElement);
+                    const src = new cv.Mat();
+
+                    let maxSize = parseInt(sizeSlider.value);
+                    if (srcRaw.cols > maxSize || srcRaw.rows > maxSize) {
+                        let scale = maxSize / Math.max(srcRaw.cols, srcRaw.rows);
+                        let dsize = new cv.Size(Math.round(srcRaw.cols * scale), Math.round(srcRaw.rows * scale));
+                        cv.resize(srcRaw, src, dsize, 0, 0, cv.INTER_AREA);
+                    } else {
+                        srcRaw.copyTo(src);
+                    }
+                    srcRaw.delete();
+
                     const gray = new cv.Mat();
                     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
 
@@ -244,8 +284,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         return;
                     }
 
+                    progressText.innerText = "Matching database...";
                     let results = [];
                     const dbKeys = Object.keys(localDb);
+                    let currentIndex = 0;
+                    const batchSize = 100;
+
+                    const matchThreshold = parseFloat(thresholdSlider.value);
 
                     const b64ToUint8Array = (b64) => {
                         const bin = atob(b64);
@@ -254,57 +299,76 @@ document.addEventListener("DOMContentLoaded", () => {
                         return bytes;
                     };
 
-                    for (let i = 0; i < dbKeys.length; i++) {
-                        let key = dbKeys[i];
-                        let val = localDb[key];
-                        let arr = b64ToUint8Array(val.data);
-                        let dbMat = cv.matFromArray(val.rows, 32, cv.CV_8U, arr);
+                    function processBatch() {
+                        if (currentSearchCancelled || !isLocalMode) {
+                            src.delete(); gray.delete(); keypoints.delete(); queryDesc.delete();
+                            finishProcessing();
+                            displayResults([]);
+                            return;
+                        }
 
-                        let matches = new cv.DMatchVectorVector();
-                        cvBf.knnMatch(queryDesc, dbMat, matches, 2);
+                        let end = Math.min(currentIndex + batchSize, dbKeys.length);
+                        for (let i = currentIndex; i < end; i++) {
+                            let key = dbKeys[i];
+                            let val = localDb[key];
+                            let arr = b64ToUint8Array(val.data);
+                            let dbMat = cv.matFromArray(val.rows, 32, cv.CV_8U, arr);
 
-                        let good = 0;
-                        const matchThreshold = parseFloat(thresholdSlider.value);
-                        for (let j = 0; j < matches.size(); j++) {
-                            let match = matches.get(j);
-                            if (match.size() == 2) {
-                                let m = match.get(0);
-                                let n = match.get(1);
-                                if (m.distance < matchThreshold * n.distance) {
-                                    good++;
+                            let matches = new cv.DMatchVectorVector();
+                            cvBf.knnMatch(queryDesc, dbMat, matches, 2);
+
+                            let good = 0;
+                            for (let j = 0; j < matches.size(); j++) {
+                                let match = matches.get(j);
+                                if (match.size() == 2) {
+                                    let m = match.get(0);
+                                    let n = match.get(1);
+                                    if (m.distance < matchThreshold * n.distance) {
+                                        good++;
+                                    }
                                 }
                             }
+
+                            if (good > 0) {
+                                results.push({ imageName: key, score: good });
+                            }
+                            dbMat.delete();
+                            matches.delete();
                         }
 
-                        if (good > 0) {
-                            results.push({ imageName: key, score: good });
+                        currentIndex = end;
+                        progressText.innerText = `Matched ${currentIndex} / ${dbKeys.length}`;
+
+                        if (currentIndex < dbKeys.length) {
+                            requestAnimationFrame(processBatch);
+                        } else {
+                            results.sort((a, b) => b.score - a.score);
+                            let topK = results.slice(0, 5);
+
+                            // Attach metadata
+                            topK.forEach(r => {
+                                let meta = localMetadata[r.imageName];
+                                if (meta) {
+                                    r.songId = meta.songId;
+                                    r.title = meta.title;
+                                    r.artist = meta.artist;
+                                    r.version = meta.version;
+                                    r.charts = meta.charts;
+                                    r.releaseDate = meta.releaseDate;
+                                }
+                            });
+
+                            src.delete(); gray.delete(); keypoints.delete(); queryDesc.delete();
+                            displayResults(topK);
+                            finishProcessing();
                         }
-                        dbMat.delete();
-                        matches.delete();
                     }
 
-                    results.sort((a, b) => b.score - a.score);
-                    let topK = results.slice(0, 5);
+                    requestAnimationFrame(processBatch);
 
-                    // Attach metadata
-                    topK.forEach(r => {
-                        let meta = localMetadata[r.imageName];
-                        if (meta) {
-                            r.songId = meta.songId;
-                            r.title = meta.title;
-                            r.artist = meta.artist;
-                            r.version = meta.version;
-                            r.charts = meta.charts;
-                            r.releaseDate = meta.releaseDate;
-                        }
-                    });
-
-                    src.delete(); gray.delete(); keypoints.delete(); queryDesc.delete();
-                    displayResults(topK);
                 } catch (e) {
                     console.error("Local CV Processing Error: ", e);
                     alert("Error processing image locally.");
-                } finally {
                     finishProcessing();
                 }
             }, 50);
@@ -312,7 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function finishProcessing() {
-        previewArea.querySelector('.loader').classList.add('hidden');
+        processingStatus.classList.add('hidden');
         previewArea.querySelector('h3').innerText = "Query Image";
         setTimeout(() => resultsArea.classList.remove("hidden"), 200);
     }
