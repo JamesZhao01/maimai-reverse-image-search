@@ -5,6 +5,9 @@ let cvOrb = null;
 let cvBf = null;
 let cvReady = false;
 
+// Cache the latest query descriptors for real-time slider threshold changes
+let currentQueryObjUrl = null;
+
 // cvReady is now defined globally in index.html
 window.initOpenCvDependentState = function () {
     const modeToggle = document.getElementById("local-mode-toggle");
@@ -44,6 +47,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Threshold Slider update
     thresholdSlider.addEventListener("input", (e) => {
         thresholdLabel.innerText = `Match strictness (Lowe's Ratio): ${parseFloat(e.target.value).toFixed(2)}`;
+    });
+
+    // Auto-search on slider release for performance (or 'input' for absolute real-time)
+    thresholdSlider.addEventListener("change", (e) => {
+        if (isLocalMode && currentQueryObjUrl) {
+            processLocal(null, currentQueryObjUrl);
+        }
     });
 
     // Trigger mode loading correctly immediately on startup since default is true
@@ -160,6 +170,8 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsArea.classList.add("hidden");
         previewArea.classList.remove("hidden");
         resultsGrid.innerHTML = '';
+
+        currentQueryObjUrl = objUrl;
 
         if (isLocalMode) {
             processLocal(file, objUrl);

@@ -176,8 +176,24 @@ input:checked + .slider:before {
   color: var(--text-muted);
 }
 
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.slider-bound {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 #threshold-slider {
-  width: 200px;
+  flex: 1;
   cursor: pointer;
   accent-color: var(--primary);
 }
