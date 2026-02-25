@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>maimai Reverse Image Search</title>
+  <meta name="description" content="Find the maimai song matching your chart screenshot." />
+  <link rel="stylesheet" href="/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="background-decor"></div>
+  
+  <main class="container">
+    <header class="app-header">
+      <h1>m<i>ai</i>m<i>ai</i></h1>
+      <h2>Reverse Image Search</h2>
+      <p>Identify level 13+ charts by uploading a screenshot.</p>
+    </header>
+
+    <div class="upload-area" id="drop-zone">
+      <div class="upload-content">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" class="upload-icon">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="upload-text">Drag & Drop an image here</span>
+        <span class="upload-subtext">or paste from your clipboard (Ctrl+V)</span>
+        <label for="file-input" class="upload-btn">Browse Files</label>
+        <input type="file" id="file-input" accept="image/*" class="hidden-input" />
+      </div>
+    </div id="drop-zone">
+
+    <div class="preview-area hidden" id="preview-area">
+      <h3>Searching for...</h3>
+      <img id="preview-image" src="" alt="Query Image Preview" />
+      <div class="loader"></div>
+    </div>
+
+    <section class="results-area hidden" id="results-area">
+      <div class="results-header">
+        <h3>Top Matches</h3>
+        <button id="refresh-btn" class="upload-btn refresh-btn">Search Again</button>
+      </div>
+      <div class="results-grid" id="results-grid">
+        <!-- Results will be injected here -->
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
