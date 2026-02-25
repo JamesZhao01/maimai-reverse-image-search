@@ -1,4 +1,4 @@
-let isLocalMode = false;
+let isLocalMode = true;
 let localDb = null;
 let localMetadata = null;
 let cvOrb = null;
@@ -25,8 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const thresholdLabel = document.getElementById("threshold-label");
     const lastUpdatedLabel = document.getElementById("last-updated");
 
+    // Base URL computation for GitHub Pages
+    const basePath = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
+
     // Fetch and display last updated time
-    fetch("info.json")
+    fetch(basePath + "info.json")
         .then(res => res.json())
         .then(data => {
             if (data.lastUpdated) {
@@ -39,6 +42,12 @@ document.addEventListener("DOMContentLoaded", () => {
     thresholdSlider.addEventListener("input", (e) => {
         thresholdLabel.innerText = `Match strictness (Lowe's Ratio): ${parseFloat(e.target.value).toFixed(2)}`;
     });
+
+    // Trigger mode loading correctly immediately on startup since default is true
+    setTimeout(() => {
+        modeToggle.checked = true;
+        modeToggle.dispatchEvent(new Event('change'));
+    }, 100);
 
     // Handle Mode Toggle
     modeToggle.addEventListener("change", async (e) => {
@@ -66,8 +75,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 const [dbRes, metaRes] = await Promise.all([
-                    fetch('sift_db.json'),
-                    fetch('metadata.json')
+                    fetch(basePath + 'sift_db.json'),
+                    fetch(basePath + 'metadata.json')
                 ]);
                 localDb = await dbRes.json();
                 localMetadata = await metaRes.json();
