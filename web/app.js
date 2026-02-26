@@ -7,6 +7,8 @@ let cvReady = false;
 
 // Cache the latest query descriptors for real-time slider threshold changes
 let currentQueryObjUrl = null;
+let currentQueryFile = null;
+let cropper = null;
 
 // cvReady is now defined globally in index.html
 window.initOpenCvDependentState = function () {
@@ -43,6 +45,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelBtn = document.getElementById("cancel-btn");
     const progressText = document.getElementById("progress-text");
     const processingStatus = document.getElementById("processing-status");
+    const searchCroppedBtn = document.getElementById("search-cropped-btn");
+    const searchFullBtn = document.getElementById("search-full-btn");
+    const cropperActions = document.querySelector(".cropper-actions");
 
     let currentSearchCancelled = false;
 
@@ -96,12 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let searchDebounceTimeout = null;
     const triggerReSearch = () => {
-        if (!isLocalMode || !currentQueryObjUrl) return;
+        if (!isLocalMode || !currentQueryObjUrl || !currentQueryFile) return;
 
         if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
         searchDebounceTimeout = setTimeout(() => {
             currentSearchCancelled = true; // Cancel existing first
-            processLocal(null, currentQueryObjUrl);
+            processLocal(currentQueryFile, currentQueryObjUrl);
         }, 300);
     };
 
@@ -256,22 +261,80 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const objUrl = URL.createObjectURL(file);
+
+        // Destroy old cropper
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+
         previewImage.src = objUrl;
+
+        // Wait for image to load to initialize cropper
+        previewImage.onload = () => {
+            cropper = new Cropper(previewImage, {
+                viewMode: 1,
+                dragMode: 'crop',
+                autoCropArea: 0.8,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+            });
+        };
 
         dropZone.classList.add("hidden");
         resultsArea.classList.add("hidden");
         previewArea.classList.remove("hidden");
+        cropperActions.classList.remove("hidden");
         resultsGrid.innerHTML = '';
         metricsText.innerText = '';
+        processingStatus.classList.add("hidden");
 
+        // Save original file for "Full Image" search
+        currentQueryFile = file;
         currentQueryObjUrl = objUrl;
+    }
+
+    // Handle "Search Cropped Area"
+    searchCroppedBtn.addEventListener("click", () => {
+        if (!cropper) return;
+
+        cropperActions.classList.add("hidden");
+
+        cropper.getCroppedCanvas().toBlob((blob) => {
+            if (!blob) {
+                alert("Failed to crop image.");
+                return;
+            }
+
+            const croppedObjUrl = URL.createObjectURL(blob);
+            currentQueryFile = blob;
+            currentQueryObjUrl = croppedObjUrl; // update cache reference to cropped
+
+            if (isLocalMode) {
+                processLocal(blob, croppedObjUrl);
+            } else {
+                uploadImage(blob);
+            }
+        });
+    });
+
+    // Handle "Search Full Image"
+    searchFullBtn.addEventListener("click", () => {
+        if (!currentQueryFile) return;
+
+        cropperActions.classList.add("hidden");
 
         if (isLocalMode) {
-            processLocal(file, objUrl);
+            processLocal(currentQueryFile, currentQueryObjUrl);
         } else {
-            uploadImage(file);
+            uploadImage(currentQueryFile);
         }
-    }
+    });
 
     // ==== REMOTE MODE ====
     async function uploadImage(file, isRetry = false) {

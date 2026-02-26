@@ -8,6 +8,11 @@
   <link rel="stylesheet" href="styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Cropper.js for Bounding Box Selection -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
   <script>
     window.onOpenCvReady = function () {
         window.cvReady = true;
@@ -78,30 +83,38 @@
 
     <div class="upload-area" id="drop-zone">
       <div class="upload-content">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" class="upload-icon">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="upload-text">Drag & Drop an image here</span>
-        <span class="upload-subtext">or paste from your clipboard (Ctrl+V)</span>
-        <label for="file-input" class="upload-btn">Browse Files</label>
-        <input type="file" id="file-input" accept="image/*" class="hidden-input" />
-      </div>
-    </div id="drop-zone">
+    <!-- File Input & Preview Area -->
+      <div class="card" id="main-card">
+        <label class="upload-area" id="drop-zone">
+          <input type="file" id="file-input" accept="image/*" class="hidden-input" />
+          <div class="upload-content">
+            <i class="far fa-image fa-4x upload-icon"></i>
+            <span class="upload-text">Click to Upload or Drag & Drop</span>
+            <span class="upload-subtext">You can also paste (Ctrl+V) a screenshot directly</span>
+            <button class="upload-btn">Browse Files</button>
+          </div>
+        </label>
 
-    <div class="preview-area hidden" id="preview-area">
-      <h3>Searching for...</h3>
-      <img id="preview-image" src="" alt="Query Image Preview" />
-      <div id="metrics-text" class="metrics-text"></div>
-      <div class="processing-status hidden" id="processing-status">
-        <div class="loader-container">
-          <div class="loader"></div>
-          <p id="progress-text">Extracting features...</p>
+        <div id="preview-area" class="preview-area hidden">
+          <h3>Query Image</h3>
+          <p class="upload-subtext">Drag to select a bounding box (optional).</p>
+          <div class="preview-img-wrapper" style="width: 100%; max-width: 500px; max-height: 400px;">
+            <img id="preview-image" src="" alt="Preview" style="display: block; max-width: 100%;" />
+          </div>
+          <div class="cropper-actions">
+            <button id="search-cropped-btn" class="upload-btn" style="margin-top: 5px;">Search Cropped Area</button>
+            <button id="search-full-btn" class="upload-btn" style="margin-top: 5px; background: rgba(255,255,255,0.1); color: var(--text-main);">Search Full Image</button>
+          </div>
+
+          <div id="processing-status" class="processing-status hidden">
+            <div class="loader-container">
+              <span class="loader"></span>
+              <span id="progress-text">Processing...</span>
+            </div>
+            <button id="cancel-btn" class="cancel-btn">Cancel Search</button>
+          </div>
         </div>
-        <button id="cancel-btn" class="upload-btn cancel-btn hidden">Cancel Search</button>
       </div>
-    </div>
 
     <section class="results-area hidden" id="results-area">
       <div class="results-header">

@@ -355,6 +355,14 @@ input:checked + .slider:before {
   border: 1px solid var(--border-light);
 }
 
+.cropper-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  width: 100%;
+  justify-content: center;
+}
+
 .processing-status {
   display: flex;
   flex-direction: column;
