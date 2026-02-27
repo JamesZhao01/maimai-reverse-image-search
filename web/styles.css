@@ -180,7 +180,7 @@ input:checked + .slider:before {
   width: 100%;
 }
 
-#threshold-label, #size-label {
+#threshold-label, #size-label, #features-label, #results-label, #level-label {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
@@ -211,7 +211,7 @@ input:checked + .slider:before {
 .range-slider-container {
   position: relative;
   width: 100%;
-  max-width: 320px;
+  flex: 1;
   height: 40px;
   display: flex;
   align-items: center;

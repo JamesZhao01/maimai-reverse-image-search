@@ -66,7 +66,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Threshold Slider update
     thresholdSlider.addEventListener("input", (e) => {
-        thresholdLabel.innerText = `Match strictness (Lowe's Ratio): ${parseFloat(e.target.value).toFixed(2)}`;
+        const strictness = parseInt(e.target.value, 10);
+        const ratio = (1.0 - (strictness / 100)).toFixed(2);
+        thresholdLabel.innerText = `Match strictness (Lowe's Ratio): ${ratio}`;
     });
 
     sizeSlider.addEventListener("input", (e) => {
@@ -216,10 +218,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Handle paste from clipboard
     document.addEventListener("paste", (e) => {
-        if (e.clipboardData && e.clipboardData.files.length > 0) {
-            const file = e.clipboardData.files[0];
-            if (file.type.startsWith('image/')) {
-                handleFile(file);
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    handleFile(file);
+                    break;
+                }
             }
         }
     });
@@ -340,7 +347,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function uploadImage(file, isRetry = false) {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("threshold", thresholdSlider.value);
+        const matchThreshold = (1.0 - (parseInt(thresholdSlider.value, 10) / 100)).toFixed(2);
+        formData.append("threshold", matchThreshold);
         formData.append("maxSize", sizeSlider.value);
         formData.append("maxFeatures", featuresSlider.value);
         formData.append("minLevel", minLevelSlider.value);
@@ -514,7 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let currentIndex = 0;
         const batchSize = 100;
 
-        const matchThreshold = parseFloat(thresholdSlider.value);
+        const matchThreshold = 1.0 - (parseInt(thresholdSlider.value, 10) / 100);
         const minLevel = parseFloat(minLevelSlider.value);
         const maxLevel = parseFloat(maxLevelSlider.value);
 
